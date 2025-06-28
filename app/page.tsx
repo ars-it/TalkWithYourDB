@@ -311,7 +311,9 @@ export default function Home() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Database Name</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {dbCreds.type === 'MongoDB' ? 'Collection Name' : 'Database Name'}
+                    </label>
                     <input
                       type="text"
                       value={dbCreds.database}
