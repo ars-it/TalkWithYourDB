@@ -1,4 +1,4 @@
-# English → Query
+# TalkWithYourDB (English → Query)
 
 Convert natural language to database queries using AI. Supports MySQL, PostgreSQL, and MongoDB with live database connections and schema-aware query generation.
 
