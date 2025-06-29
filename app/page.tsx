@@ -24,7 +24,9 @@ export default function Home() {
     password: '',
     database: '',
     port: '',
+    connectionString: '',
   })
+  const [useConnectionString, setUseConnectionString] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const [connected, setConnected] = useState(false)
   const [connectError, setConnectError] = useState('')
@@ -43,16 +45,25 @@ export default function Home() {
     setConnecting(true)
     setConnectError('')
     try {
-      // Encrypt password before sending
-      const encryptedPassword = await encryptPassword(dbCreds.password)
+      let requestBody: any = { ...dbCreds }
+      
+      if (useConnectionString) {
+        // For connection string mode, don't encrypt the connection string
+        requestBody = {
+          type: dbCreds.type,
+          database: dbCreds.database,
+          connectionString: dbCreds.connectionString
+        }
+      } else {
+        // For traditional connections, encrypt password
+        const encryptedPassword = await encryptPassword(dbCreds.password)
+        requestBody.password = encryptedPassword
+      }
       
       const res = await fetch('/api/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...dbCreds,
-          password: encryptedPassword
-        }),
+        body: JSON.stringify(requestBody),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to connect')
@@ -76,7 +87,7 @@ export default function Home() {
     })
     setConnected(false)
     setConnectionId(null)
-    setDbCreds({ type: 'MySQL', host: '', user: '', password: '', database: '', port: '' })
+    setDbCreds({ type: 'MySQL', host: '', user: '', password: '', database: '', port: '', connectionString: '' })
     setDatabase('MySQL')
     setConnectToDb(false)
     setSchemaLoaded(false)
@@ -200,7 +211,7 @@ export default function Home() {
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-2">
-              English → Query
+              TalkWithYourDB (English → Query)
             </h1>
             <p className="text-lg text-gray-600">
               Convert natural language queries to database-specific syntax using AI
@@ -280,56 +291,123 @@ export default function Home() {
                       <option value="MongoDB">MongoDB</option>
                     </select>
                   </div>
+                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Host</label>
-                    <input
-                      type="text"
-                      value={dbCreds.host}
-                      onChange={e => setDbCreds({ ...dbCreds, host: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
-                      required
-                    />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Connection Type</label>
+                    <div className="flex items-center space-x-4">
+                      <label className="flex items-center text-gray-700">
+                        <input
+                          type="radio"
+                          checked={!useConnectionString}
+                          onChange={() => setUseConnectionString(false)}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">Traditional</span>
+                      </label>
+                      <label className="flex items-center text-gray-700">
+                        <input
+                          type="radio"
+                          checked={useConnectionString}
+                          onChange={() => setUseConnectionString(true)}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">Connection String</span>
+                      </label>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">User</label>
-                    <input
-                      type="text"
-                      value={dbCreds.user}
-                      onChange={e => setDbCreds({ ...dbCreds, user: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                    <input
-                      type="password"
-                      value={dbCreds.password}
-                      onChange={e => setDbCreds({ ...dbCreds, password: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {dbCreds.type === 'MongoDB' ? 'Collection Name' : 'Database Name'}
-                    </label>
-                    <input
-                      type="text"
-                      value={dbCreds.database}
-                      onChange={e => setDbCreds({ ...dbCreds, database: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Port</label>
-                    <input
-                      type="number"
-                      value={dbCreds.port}
-                      onChange={e => setDbCreds({ ...dbCreds, port: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
-                      required
-                    />
-                  </div>
+                  
+                  {useConnectionString ? (
+                    // Connection String Mode for all databases
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Connection String</label>
+                        <textarea
+                          value={dbCreds.connectionString}
+                          onChange={e => setDbCreds({ ...dbCreds, connectionString: e.target.value })}
+                          placeholder={
+                            dbCreds.type === 'MySQL' 
+                              ? 'mysql://username:password@host:port/database' 
+                              : dbCreds.type === 'PostgreSQL'
+                              ? 'postgresql://username:password@host:port/database'
+                              : 'mongodb+srv://username:password@cluster.region.mongodb.net/'
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                          rows={3}
+                          required
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Paste your {dbCreds.type} connection string here
+                        </p>
+                      </div>
+                      {dbCreds.type === 'MongoDB' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Database Name</label>
+                          <input
+                            type="text"
+                            value={dbCreds.database}
+                            onChange={e => setDbCreds({ ...dbCreds, database: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                            required
+                          />
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    // Traditional Connection Mode
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Host</label>
+                        <input
+                          type="text"
+                          value={dbCreds.host}
+                          onChange={e => setDbCreds({ ...dbCreds, host: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">User</label>
+                        <input
+                          type="text"
+                          value={dbCreds.user}
+                          onChange={e => setDbCreds({ ...dbCreds, user: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <input
+                          type="password"
+                          value={dbCreds.password}
+                          onChange={e => setDbCreds({ ...dbCreds, password: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {dbCreds.type === 'MongoDB' ? 'Database Name' : 'Database Name'}
+                        </label>
+                        <input
+                          type="text"
+                          value={dbCreds.database}
+                          onChange={e => setDbCreds({ ...dbCreds, database: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Port</label>
+                        <input
+                          type="number"
+                          value={dbCreds.port}
+                          onChange={e => setDbCreds({ ...dbCreds, port: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                          required
+                        />
+                      </div>
+                    </>
+                  )}
+                  
                   {connectError && (
                     <div className="p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
                       {connectError}

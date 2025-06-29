@@ -43,32 +43,53 @@ const decryptPassword = (encryptedPassword: string): string => {
 
 export async function POST(request: NextRequest) {
   try {
-    const { type, host, user, password, database, port } = await request.json()
-    
-    // Decrypt password before using
-    const decryptedPassword = decryptPassword(password)
+    const { type, host, user, password, database, port, connectionString } = await request.json()
     
     let conn, client, mongo
     let connectionId = makeId()
+    
     if (type === 'MySQL') {
-      conn = await mysql.createConnection({ host, user, password: decryptedPassword, database, port: Number(port) })
+      if (connectionString) {
+        // Use provided connection string (for cloud MySQL services)
+        conn = await mysql.createConnection(connectionString)
+      } else {
+        // Build connection from individual parameters
+        const decryptedPassword = decryptPassword(password)
+        conn = await mysql.createConnection({ host, user, password: decryptedPassword, database, port: Number(port) })
+      }
       CONNECTIONS[connectionId] = { type, conn }
     } else if (type === 'PostgreSQL') {
-      client = new PgClient({ host, user, password: decryptedPassword, database, port: Number(port) })
+      if (connectionString) {
+        // Use provided connection string (for cloud PostgreSQL services)
+        client = new PgClient(connectionString)
+      } else {
+        // Build connection from individual parameters
+        const decryptedPassword = decryptPassword(password)
+        client = new PgClient({ host, user, password: decryptedPassword, database, port: Number(port) })
+      }
       await client.connect()
       CONNECTIONS[connectionId] = { type, client }
     } else if (type === 'MongoDB') {
       let uri = ''
-      if (user && decryptedPassword) {
-        // Both username and password provided
-        uri = `mongodb://${user}:${encodeURIComponent(decryptedPassword)}@${host}:${port}`
-      } else if (user && !decryptedPassword) {
-        // Username provided but no password
-        uri = `mongodb://${user}@${host}:${port}`
+      
+      if (connectionString) {
+        // Use provided connection string (for MongoDB Atlas)
+        uri = connectionString
       } else {
-        // No authentication (local development)
-        uri = `mongodb://${host}:${port}`
+        // Build connection string from individual parameters (for traditional MongoDB)
+        const decryptedPassword = decryptPassword(password)
+        if (user && decryptedPassword) {
+          // Both username and password provided
+          uri = `mongodb://${user}:${encodeURIComponent(decryptedPassword)}@${host}:${port}`
+        } else if (user && !decryptedPassword) {
+          // Username provided but no password
+          uri = `mongodb://${user}@${host}:${port}`
+        } else {
+          // No authentication (local development)
+          uri = `mongodb://${host}:${port}`
+        }
       }
+      
       mongo = new MongoClient(uri, { serverSelectionTimeoutMS: 10000 })
       await mongo.connect()
       CONNECTIONS[connectionId] = { type, mongo, dbName: database }
