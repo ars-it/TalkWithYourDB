@@ -54,9 +54,7 @@ export default function Home() {
           password: encryptedPassword
         }),
       })
-      console.log(res)
       const data = await res.json()
-      console.log(data)
       if (!res.ok) throw new Error(data.error || 'Failed to connect')
       setConnected(true)
       setConnectionId(data.connectionId)

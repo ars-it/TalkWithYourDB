@@ -5,7 +5,7 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'English → Query | AI Database Query Converter',
+  title: 'TalkWithYourDB | AI powered Natural Language to Database Query Converter',
   description: 'Convert natural language to database queries using AI. Supports MySQL, PostgreSQL, and MongoDB with live database connections. Created by Aravind S.',
   authors: [{ name: 'Aravind S', url: 'https://github.com/ars-it' }],
   keywords: ['database', 'query', 'ai', 'openai', 'mysql', 'postgresql', 'mongodb', 'natural-language', 'sql'],
